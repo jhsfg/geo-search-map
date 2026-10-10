@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Geo Search Map - Interactive Company Map Search</title>
+    <meta name="description" content="Full-screen Google Maps-style geographic search interface built with Leaflet.js. Search companies worldwide by keyword, view results as clustered map markers and a split-screen detail panel.">
+
+    <!-- Leaflet + MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="css/map-search.css" />
+</head>
+<body>
+
+    <!-- Main area: map + right detail split-panel (flex layout, panel pushes map) -->
+    <div id="main-container">
+        <div id="map-wrap">
+            <div id="map"></div>
+
+            <!-- Right floating controls: layers / locate / zoom -->
+            <div class="float-right">
+                <div class="layer-card" id="layer-card" style="display:none;">
+                    <button class="layer-card__opt is-active" data-layer="standard">
+                        <span class="layer-card__thumb layer-card__thumb--standard"></span>Standard
+                    </button>
+                    <button class="layer-card__opt" data-layer="satellite">
+                        <span class="layer-card__thumb layer-card__thumb--satellite"></span>Satellite
+                    </button>
+                    <button class="layer-card__opt" data-layer="dark">
+                        <span class="layer-card__thumb layer-card__thumb--dark"></span>Dark
+                    </button>
+                </div>
+                <button class="ctrl-btn" id="layer-btn" title="Map layers">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 4.5L21.75 12l-4.179-2.25m0 4.5l-5.571 3-5.571-3m11.142 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25"/></svg>
+                </button>
+                <button class="ctrl-btn" id="locate-btn" title="My location">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+                </button>
+                <div class="ctrl-group">
+                    <button class="ctrl-btn ctrl-btn--flat" id="zoom-in" title="Zoom in">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    </button>
+                    <button class="ctrl-btn ctrl-btn--flat" id="zoom-out" title="Zoom out">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right detail split-panel (expands width, pushes map) -->
+        <div class="detail-panel" id="detail-panel">
+            <div class="detail-panel__inner">
+                <div class="detail-panel__header">
+                    <span class="detail-panel__title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"/></svg>
+                        Company
+                    </span>
+                    <button class="detail-panel__close" id="detail-close" title="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="detail-panel__body" id="detail-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top-left floating area: search card + quick keyword chips -->
+    <div class="float-tl">
+        <div class="search-card">
+            <a class="search-card__back" href="/" title="Back to Home">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            </a>
+            <div class="search-card__input-wrap">
+                <input type="text" id="keyword-input" class="search-card__input"
+                       placeholder="Search companies or products..." autocomplete="off">
+                <button class="search-card__clear" id="clear-btn" title="Clear">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <button class="search-card__go" id="search-btn" title="Search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+            </button>
+        </div>
+
+        <!-- Quick keyword chips -->
+        <div class="chips" id="chips">
+            <button class="chip" data-q="cnc machining">CNC Machining</button>
+            <button class="chip" data-q="aluminum">Aluminum</button>
+            <button class="chip" data-q="valve">Valve</button>
+            <button class="chip" data-q="led light">LED Light</button>
+            <button class="chip" data-q="furniture">Furniture</button>
+            <button class="chip" data-q="packaging">Packaging</button>
+            <button class="chip" data-q="steel pipe">Steel Pipe</button>
+        </div>
+
+        <!-- Recent search keywords (localStorage) -->
+        <div class="chips chips--recent" id="recent-chips" style="display:none;"></div>
+
+        <!-- Bottom-left results panel (floating card) -->
+        <div class="results-panel" id="results-panel" style="display:none;">
+            <div class="results-panel__header">
+                <span class="results-panel__count"><b id="match-count">0</b> companies</span>
+                <span class="city-tag" id="city-tag" style="display:none;">
+                    <span id="city-tag-name"></span>
+                    <button id="city-tag-clear" title="Clear city filter">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </span>
+                <button class="results-panel__collapse" id="results-collapse" title="Collapse">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                </button>
+            </div>
+            <div class="results-panel__body" id="results-list"></div>
+            <div class="results-panel__loader" id="list-loader" style="display:none;">Loading more...</div>
+        </div>
+    </div>
+
+    <!-- Empty state hint (first open) -->
+    <div class="empty-hint" id="empty-hint">
+        <div class="empty-hint__icon">🌐</div>
+        <div class="empty-hint__text">Enter a keyword and press <b>Enter</b><br><small>e.g. cnc, aluminum, valve, Shenzhen</small></div>
+    </div>
+
+    <!-- Leaflet + MarkerCluster JS -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="js/map-search.js"></script>
+</body>
+</html>
